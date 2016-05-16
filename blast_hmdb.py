@@ -52,7 +52,8 @@ def parse_HMDB(xml_file):
         tmpdict['biofluids'] = [i.text for i in elem.find('biofluid_locations').findall('biofluid')]
         tmpdict['biofunctions'] = [i.text for i in elem.find('ontology').find('biofunctions').findall('biofunction')]
         outdict[elem.findtext('accession')] = tmpdict
-    
+        elem.clear()
+        
     return outdict
 
 def extract_mzs(fname, colname=None, indexname=None, sep='\t', header=0):
@@ -122,7 +123,12 @@ def get_hmdb_hits(masses, hmdb_dict, ppm_tol):
                          the HMDB_ID. It also has one additional subkey, which is ppm.
     """
     allhits = {}
+    count = 0
+    print('Getting hits for {} unique neutral masses'.format(len(set(masses))))
     for m in set(masses):
+        count += 1
+        if count % 100 == 0:
+            print('Getting hits for the {}th neutral mass'.format(count))
         mhits = [i for i in hmdb_dict if abs(float(hmdb_dict[i]['neutral_mass']) - float(m)) <= ppm_tol*float(m)/1e6]
         allhits[m] = {i: hmdb_dict[i] for i in mhits}
         # Add in ppm for each hit
@@ -157,14 +163,13 @@ def write_hits_to_file(adduct_type, neutral_masses, mzs, mznames, allhits, fout,
         for a, nm, mz, mzname in zip(adduct_type, neutral_masses, mzs, mznames):
             if allhits[nm]:
                 for h_id in allhits[nm]:
-                    h_name = allhits[nm][h_id]['name']
+                    h_name = allhits[nm][h_id]['name'].encode('utf-8')
                     ppm = allhits[nm][h_id]['ppm']
                     mono_mass = allhits[nm][h_id]['neutral_mass']
-                    syns = ', '.join(allhits[nm][h_id]['synonyms'])
-                    fluids = ', '.join(allhits[nm][h_id]['biofluids'])
-                    functions = ', '.join(allhits[nm][h_id]['biofunctions'])
-                
-                    f.write('\t'.join([str(i) for i in [mzname, mz, a, nm, h_id, h_name, mono_mass, ppm, syns, fluids, functions]]) + '\n') 
+                    syns = ', '.join(allhits[nm][h_id]['synonyms']).encode('utf-8')
+                    fluids = ', '.join(allhits[nm][h_id]['biofluids']).encode('utf-8')
+                    functions = ', '.join(allhits[nm][h_id]['biofunctions']).encode('utf-8')
+                    f.write('\t'.join([str(i) for i in [mzname, mz, a, nm, h_id, h_name, mono_mass, ppm, syns, fluids, functions]]) + '\n')
             else:
                 f.write('\t'.join([str(i) for i in [mzname, mz, a, nm]]) + '\n')
 
@@ -201,13 +206,17 @@ except:
     print('failed to extract mzs from feature table')
     
 ## 3. Calculate neutral masses for each mz
+print('Calculating neutral masses')
 minush_nm, pluscl_nm = calculate_neutral_masses(mzs)
 
 ## 4. Get hits to HMDB, within a tolerance
+print('Getting hits to HMDB metabolites, [M-H]-')
 hits_h = get_hmdb_hits(minush_nm, hmdb_dict, ppm_tolerance)
+print('Getting hits to HMDB metabolites, [M+Cl]-')
 hits_cl = get_hmdb_hits(pluscl_nm, hmdb_dict, ppm_tolerance)
 
 ## 5. Write to file
+print('Writing file ' + outfile)
 # 5.1 [M-H]- adducts first
 adducts = ['[M-H]-']*len(minush_nm)
 newfile = True
