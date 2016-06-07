@@ -51,6 +51,7 @@ def parse_HMDB(xml_file):
         tmpdict['synonyms'] = [i.text for i in elem.find('synonyms').findall('synonym')]
         tmpdict['biofluids'] = [i.text for i in elem.find('biofluid_locations').findall('biofluid')]
         tmpdict['biofunctions'] = [i.text for i in elem.find('ontology').find('biofunctions').findall('biofunction')]
+        tmpdict['description'] = elem.findtext('description')
         outdict[elem.findtext('accession')] = tmpdict
         elem.clear()
         
@@ -137,7 +138,7 @@ def get_hmdb_hits(masses, hmdb_dict, ppm_tol):
     
     return allhits
 
-def write_hits_to_file(adduct_type, neutral_masses, mzs, mznames, allhits, fout, overwrite=False):
+def write_hits_to_file(adduct_type, neutral_masses, mzs, mznames, allhits, fout, overwrite=False, describe=False):
     """ Write all of the hits for each mass for each adduct to fout.
     
     INPUTS
@@ -146,6 +147,8 @@ def write_hits_to_file(adduct_type, neutral_masses, mzs, mznames, allhits, fout,
     mzs = list of mz's corresponding of len(neutral_masses). mzs[i] = neutral_masses[i] with adduct[i]
     allhits = dictionary of HMDB hits. Keys are all of the unique neutral masses
             allhits[neutral_masses[i]] = {hmdb_id: hmdb_dict[hmdb_id]}
+    describe = whether to include the HMDB description in the output file. This feature is buggy
+               and has weird formatting at times. Default is False
     
     OUTPUTS
     None.
@@ -159,7 +162,10 @@ def write_hits_to_file(adduct_type, neutral_masses, mzs, mznames, allhits, fout,
     
     with open(fout, readtype) as f:
         if overwrite:
-            f.write('\t'.join(['featname', 'mz', 'adduct', 'neutral_mass', 'hmdb_id', 'hmdb_name', 'monoisotopic_mass', 'ppm', 'synonyms', 'biofluids', 'biofunctions']) + '\n')
+            if describe:
+                f.write('\t'.join(['featname', 'mz', 'adduct', 'neutral_mass', 'hmdb_id', 'hmdb_name', 'monoisotopic_mass', 'ppm', 'synonyms', 'biofluids', 'biofunctions', 'description']) + '\n')
+            else:
+                f.write('\t'.join(['featname', 'mz', 'adduct', 'neutral_mass', 'hmdb_id', 'hmdb_name', 'monoisotopic_mass', 'ppm', 'synonyms', 'biofluids', 'biofunctions']) + '\n')
         for a, nm, mz, mzname in zip(adduct_type, neutral_masses, mzs, mznames):
             if allhits[nm]:
                 for h_id in allhits[nm]:
@@ -169,7 +175,11 @@ def write_hits_to_file(adduct_type, neutral_masses, mzs, mznames, allhits, fout,
                     syns = ', '.join(allhits[nm][h_id]['synonyms']).encode('utf-8')
                     fluids = ', '.join(allhits[nm][h_id]['biofluids']).encode('utf-8')
                     functions = ', '.join(allhits[nm][h_id]['biofunctions']).encode('utf-8')
-                    f.write('\t'.join([str(i) for i in [mzname, mz, a, nm, h_id, h_name, mono_mass, ppm, syns, fluids, functions]]) + '\n')
+                    if describe:
+                        description = allhits[nm][h_id]['description'].encode('utf-8')
+                        f.write('\t'.join([str(i) for i in [mzname, mz, a, nm, h_id, h_name, mono_mass, ppm, syns, fluids, functions, description]]) + '\n')
+                    else:
+                        f.write('\t'.join([str(i) for i in [mzname, mz, a, nm, h_id, h_name, mono_mass, ppm, syns, fluids, functions, description]]) + '\n')
             else:
                 f.write('\t'.join([str(i) for i in [mzname, mz, a, nm]]) + '\n')
 
@@ -179,6 +189,7 @@ parser.add_argument('-f', help='input feature table. has column labeled mz and f
 parser.add_argument('-s', help='feature table separator. default is tab-delimited', default='\t')
 parser.add_argument('-p', help='ppm tolerance. default is 5', default=5, type=int)
 parser.add_argument('-o', help='output file to write results to', required=True)
+parser.add_argument('-d', help='whether to include description in output (may mess up formatting)', default=False)
 args = parser.parse_args()
 
 hmdb_xml = args.x
@@ -186,6 +197,7 @@ feattable = args.f
 sep = args.s
 ppm_tolerance = args.p
 outfile = args.o
+describe = args.d
 '''
 hmdb_xml = r'C:\Users\Claire\Documents\GitHub\blast_hmdb\data\hmdb_metabolites_clean.xml'
 feattable = r'C:\Users\Claire\Documents\GitHub\blast_hmdb\data\toy_feature_table.csv'
@@ -220,9 +232,9 @@ print('Writing file ' + outfile)
 # 5.1 [M-H]- adducts first
 adducts = ['[M-H]-']*len(minush_nm)
 newfile = True
-write_hits_to_file(adducts, minush_nm, mzs, mznames, hits_h, outfile, overwrite=newfile)
+write_hits_to_file(adducts, minush_nm, mzs, mznames, hits_h, outfile, overwrite=newfile, describe=describe)
 
 # [M+Cl]- next
 adducts = ['[M+Cl]-']*len(pluscl_nm)
 newfile = False
-write_hits_to_file(adducts, pluscl_nm, mzs, mznames, hits_cl, outfile, overwrite=newfile)
+write_hits_to_file(adducts, pluscl_nm, mzs, mznames, hits_cl, outfile, overwrite=newfile, describe=describe)
