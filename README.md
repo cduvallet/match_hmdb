@@ -16,6 +16,8 @@ and should be the default input HMDB file to `blast_hmdb.py`.
 Check out the `toy_feature_table.csv` for an example of what your feature table
 can look like.
 
-# contibutors
+You should gunzip the `hmdb_metabolites_clean.xml.gz` file before trying to use it.
+
+# contributors
 - Claire Duvallet (duvallet at mit dot edu)
 - Isaac Rockafellow
