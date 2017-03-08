@@ -267,11 +267,11 @@ def write_hits_to_file(adduct_type, neutral_masses, mzs, mznames, allhits, fout,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-x', help='clean hmdb xml file', default='', required=True)
-    parser.add_argument('-f', help='input feature table. has column labeled mz and feature names in the first column', required=True)
+    parser.add_argument('-x', help='clean hmdb xml file [required, default = data/hmdb_metabolites_clean.xml]', default='data/hmdb_metabolites_clean.xml', required=True)
+    parser.add_argument('-f', help='input feature table. has column labeled mz and feature names in the first column [required, no default]', required=True)
     parser.add_argument('-s', help='feature table separator. default is tab-delimited', default='\t')
     parser.add_argument('-p', help='ppm tolerance. default is 5', default=5, type=int)
-    parser.add_argument('-o', help='output file to write results to', required=True)
+    parser.add_argument('-o', help='output file to write results to [required, no default]', required=True)
     parser.add_argument('-d', help='whether to include description in output (may mess up formatting)', default=False)
     args = parser.parse_args()
     
@@ -282,15 +282,6 @@ if __name__ == "__main__":
     outfile = args.o
     describe = args.d
 
-    """
-    hmdb_xml = r'C:\Users\Claire\Documents\GitHub\blast_hmdb\data\hmdb_metabolites_clean.xml'
-    feattable = r'C:\Users\Claire\Documents\GitHub\blast_hmdb\data\toy_feature_table.csv'
-    sep = ','
-    ppm_tolerance = 5
-    outfile = r'C:\Users\Claire\Documents\GitHub\blast_hmdb\test.txt'
-    describe = False
-    """
-    
     ## 1. Parse HMDB xml
     hmdb_dict = parse_HMDB(hmdb_xml)
 #    try:
