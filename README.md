@@ -52,3 +52,22 @@ You should gunzip the `hmdb_metabolites_clean.xml.gz` file before trying to use 
 # Contributors
 - Claire Duvallet (duvallet at mit dot edu)
 - Isaac Rockafellow
+
+# Exact masses
+
+This code doesn't need exact masses (since it uses m/z's in your feature table
+and m/z's in HMDB), but just for reference:
+
+```
+m = {'C': 12.0,
+     'H': 1.007825,
+     'O': 15.994915,
+     'N': 14.003074,
+     'S': 31.972072,
+     'Cl': 34.968853,
+     'F': 18.998403,
+     'B': 10.012938,
+     'D': 2.014102,
+     'Na': 22.989770,
+     'e-': 0.000548579909}
+```
