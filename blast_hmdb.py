@@ -20,24 +20,24 @@ import argparse
 
 def parse_HMDB(xml_file):
     """ Parses a cleaned up HMDB xml file into a dictionary.
-    
-    Dictionary contains: {HMDB_ID: {'neutral_mass': m, 'name': name, 
-    'synonyms': [list of names], 'biofluid': [list of fluids], 
+
+    Dictionary contains: {HMDB_ID: {'neutral_mass': m, 'name': name,
+    'synonyms': [list of names], 'biofluid': [list of fluids],
     'biofunction': [list of functions]}, ...}
-    
-    Input: xml_file: this file should be cleaned up using 
+
+    Input: xml_file: this file should be cleaned up using
     remove_excess_xml_declarations.py
         Why? Because downloading all HMDB metabolites actually downloads
-        45,000 separate xml files. Will concatenate into one file, but need to 
+        45,000 separate xml files. Will concatenate into one file, but need to
         remove new XML declarations.
-    
+
     Output: dictionary
     """
     outdict = {}
 
     tree = etree.iterparse(xml_file, tag='metabolite')
     counter = 0
-    
+
     for event, elem in tree:
         counter += 1
         if counter % 2000 == 0:
@@ -48,16 +48,28 @@ def parse_HMDB(xml_file):
             tmpdict['neutral_mass'] = elem.findtext('monisotopic_moleculate_weight')
         else:
             tmpdict['neutral_mass'] = '0.0'
-        tmpdict['synonyms'] = [i.text for i in elem.find('synonyms').findall('synonym')]
-        tmpdict['biofluids'] = [i.text for i in elem.find('biofluid_locations').findall('biofluid')]
-        tmpdict['biofunctions'] = [i.text for i in elem.find('ontology').find('biofunctions').findall('biofunction')]
+
+        tmpdict['synonyms'] = [
+            i.text for i in elem.find('synonyms').findall('synonym')]
+
+        tmpdict['biofluids'] = [
+            i.text for i in elem.find('biofluid_locations').findall('biofluid')]
+
+        # ''.join(i.text.split('\t')) fixes bug related to Clavulanate,
+        # which seems to have tab characters in its biofunctions
+        tmpdict['biofunctions'] = [
+            ''.join(i.text.split('\t')) for i in
+            elem.find('ontology').find('biofunctions').findall('biofunction')]
+
         tmpdict['description'] = elem.findtext('description')
-        # Get taxonomy info, substituents, and alternative_parents. Note - not all HMDB metabolites have this info
+
+        # Get taxonomy info, substituents, and alternative_parents.
+        # Not all HMDB metabolites have this info
         try:
             tmpdict['kingdom'] = elem.find('taxonomy').findtext('kingdom')
         except:
             tmpdict['kingdom'] = ''
-        try: 
+        try:
             tmpdict['super_class'] = elem.find('taxonomy').findtext('super_class')
         except:
             tmpdict['super_class'] = ''
@@ -78,10 +90,10 @@ def parse_HMDB(xml_file):
         except:
             tmpdict['alternative_parents'] = ['']
         try:
-            tmpdict['substituents'] = [i.text for i in elem.find('taxonomy').find('substituents').findall('substituent')]        
+            tmpdict['substituents'] = [i.text for i in elem.find('taxonomy').find('substituents').findall('substituent')]
         except:
-            tmpdict['substituents'] = ['']       
-        
+            tmpdict['substituents'] = ['']
+
         # Find diseases and pathways. Note that pathways also can have different IDs like KEGG
         try:
             tmpdict['diseases'] = [i.findtext('name') for i in elem.find('diseases').findall('disease')]
@@ -91,21 +103,21 @@ def parse_HMDB(xml_file):
             tmpdict['pathways'] = [i.findtext('name') for i in elem.find('pathways').findall('pathway')]
         except:
             tmpdict['pathways'] = ['']
-            
+
         outdict[elem.findtext('accession')] = tmpdict
         elem.clear()
-        
+
     return outdict
 
 def extract_mzs(fname, colname=None, indexname=None, sep='\t', header=0):
     """ Extracts the mz's from a file containing mz's in a column
     named colname. Each mz is labeled with values in column labeled indexname.
-    
+
     sep indicates the separator for columns in file fname. Default is tab-delimited.
-    
-    If header=None, file assumes no header row. Else it reads in the first row as the header.    
-    
-    If file only contains neutral masses (i.e. it's not a dataframe) and 
+
+    If header=None, file assumes no header row. Else it reads in the first row as the header.
+
+    If file only contains neutral masses (i.e. it's not a dataframe) and
     colname = None, just reads in the file with each mz on a newline, and labels
     each mz with a counter.
     """
@@ -117,7 +129,7 @@ def extract_mzs(fname, colname=None, indexname=None, sep='\t', header=0):
     else:
         feattable = pd.read_csv(fname, sep=sep)
         mzs = list(feattable[colname])
-    
+
     # Read in mz labels from file
     if not colname and not indexname:
         mznames = [str(i) for i in range(0, len(mzs))]
@@ -127,36 +139,36 @@ def extract_mzs(fname, colname=None, indexname=None, sep='\t', header=0):
             mznames = list(feattable.index)
         else:
             mznames = list(feattable(indexname))
-    
-    return mzs, mznames    
-    
+
+    return mzs, mznames
+
 def calculate_neutral_masses(mzs):
     """ Calculates the neutral masses from a list of mz's provided.
-    
+
     Currently returns two lists of neutral masses: one corresponding to the
     [M-H]- adduct and one to the [M+Cl]- adduct
     """
-    
+
     ## Calculate neutral masses for both types of common neg ions.
-    # Numbers include electron masses    
+    # Numbers include electron masses
     # [M-H]- adducts
     minush = [float(i) + 1.007276 for i in mzs]
-    # [M+Cl]- adducts    
+    # [M+Cl]- adducts
     pluscl = [float(i) - 34.969402 for i in mzs]
-    
+
     return minush, pluscl
 
 def get_hmdb_hits(masses, hmdb_dict, ppm_tol):
     """ For each mass in masses, scan the given hmdb dictionary for any hits within
     ppm_tol tolerance.
-    
+
     INPUTS
     masses = list of neutral masses
-    
-    hmdb_dict = dictionary created by running parse_HMDB() on an HMDB xml file. 
-    
+
+    hmdb_dict = dictionary created by running parse_HMDB() on an HMDB xml file.
+
     ppm_tol = maximum error tolerated to consider mass a "hit", in ppm's
-    
+
     OUTPUT
     allhits = dictionary containing all the hits for each mass
               dictionary contains: {mass: {hmdb_id: hmdb_dict}}
@@ -175,12 +187,12 @@ def get_hmdb_hits(masses, hmdb_dict, ppm_tol):
         # Add in ppm for each hit
         for i in allhits[m]:
             allhits[m][i]['ppm'] = str(abs(float(hmdb_dict[i]['neutral_mass']) - float(m))/float(m) * 1e6)
-    
+
     return allhits
 
 def write_hits_to_file(adduct_type, neutral_masses, mzs, mznames, allhits, fout, overwrite=False, describe=False):
     """ Write all of the hits for each mass for each adduct to fout.
-    
+
     INPUTS
     adduct_type = list of adduct types of len(neutral_masses)
     neutral_masses = list of neutral masses
@@ -189,37 +201,37 @@ def write_hits_to_file(adduct_type, neutral_masses, mzs, mznames, allhits, fout,
             allhits[neutral_masses[i]] = {hmdb_id: hmdb_dict[hmdb_id]}
     describe = whether to include the HMDB description in the output file. This feature is buggy
                and has weird formatting at times. Default is False
-    overwrite = whether to overwrite the fout or append to existing file fout          
-    
+    overwrite = whether to overwrite the fout or append to existing file fout
+
     OUTPUTS
     None.
     Writes tab-delimited file to fout with each hit for each mz on its own line.
     """
-    
+
     if overwrite:
         readtype = 'w'
     else:
         readtype = 'a'
-    
+
     with open(fout, readtype) as f:
         if overwrite:
             if describe:
-                f.write('\t'.join(['featname', 'mz', 'adduct', 'neutral_mass', 
-                                   'hmdb_id', 'hmdb_name', 'monoisotopic_mass', 
-                                   'ppm', 'synonyms', 'biofluids', 'biofunctions', 
+                f.write('\t'.join(['featname', 'mz', 'adduct', 'neutral_mass',
+                                   'hmdb_id', 'hmdb_name', 'monoisotopic_mass',
+                                   'ppm', 'synonyms', 'biofluids', 'biofunctions',
                                    'description', 'kingdom', 'super_class',
-                                   'class', 'sub_class', 'molecular_framework', 
+                                   'class', 'sub_class', 'molecular_framework',
                                    'alternative_parents', 'substituents',
                                    'pathways', 'diseases']) + '\n')
             else:
-                f.write('\t'.join(['featname', 'mz', 'adduct', 'neutral_mass', 
-                                   'hmdb_id', 'hmdb_name', 'monoisotopic_mass', 
+                f.write('\t'.join(['featname', 'mz', 'adduct', 'neutral_mass',
+                                   'hmdb_id', 'hmdb_name', 'monoisotopic_mass',
                                    'ppm', 'synonyms', 'biofluids', 'biofunctions',
                                    'kingdom', 'super_class',
-                                   'class', 'sub_class', 'molecular_framework', 
+                                   'class', 'sub_class', 'molecular_framework',
                                    'alternative_parents', 'substituents',
                                    'pahways', 'diseases']) + '\n')
-                                   
+
         for a, nm, mz, mzname in zip(adduct_type, neutral_masses, mzs, mznames):
             # If the neutral mass has an HMDB hit
             if allhits[nm]:
@@ -240,26 +252,26 @@ def write_hits_to_file(adduct_type, neutral_masses, mzs, mznames, allhits, fout,
                     substituents = '; '.join(allhits[nm][h_id]['substituents']).encode('utf-8')
                     pathways = '; '.join(allhits[nm][h_id]['pathways']).encode('utf-8')
                     diseases = '; '.join(allhits[nm][h_id]['diseases']).encode('utf-8')
-                    
+
                     if describe:
                         description = allhits[nm][h_id]['description'].encode('utf-8')
-                        f.write('\t'.join([str(i) for i in [mzname, mz, a, nm, 
-                                                           h_id, h_name, mono_mass, 
-                                                           ppm, syns, fluids, functions, 
+                        f.write('\t'.join([str(i) for i in [mzname, mz, a, nm,
+                                                           h_id, h_name, mono_mass,
+                                                           ppm, syns, fluids, functions,
                                                            description, kingdom,
                                                            super_class, cls,
                                                            sub_class, molec_framework,
-                                                           alt_parents, 
+                                                           alt_parents,
                                                            substituents,
                                                            pathways, diseases]]) + '\n')
                     else:
-                        f.write('\t'.join([str(i) for i in [mzname, mz, a, nm, 
-                                                           h_id, h_name, mono_mass, 
-                                                           ppm, syns, fluids, functions, 
+                        f.write('\t'.join([str(i) for i in [mzname, mz, a, nm,
+                                                           h_id, h_name, mono_mass,
+                                                           ppm, syns, fluids, functions,
                                                            kingdom,
                                                            super_class, cls,
                                                            sub_class, molec_framework,
-                                                           alt_parents, 
+                                                           alt_parents,
                                                            substituents,
                                                            pathways, diseases]]) + '\n')
             else:
@@ -274,7 +286,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', help='output file to write results to [required, no default]', required=True)
     parser.add_argument('-d', help='whether to include description in output (may mess up formatting) [default: %(default)s]', default=False)
     args = parser.parse_args()
-    
+
     hmdb_xml = args.x
     feattable = args.f
     sep = args.s
@@ -288,30 +300,30 @@ if __name__ == "__main__":
 #        hmdb_dict = parse_HMDB(hmdb_xml)
 #    except:
 #        print('failed to parse hmdb')
-        
+
     ## 2. Extract mz's from feature table file
     try:
         mzs, mznames = extract_mzs(feattable, colname='mz', indexname=None, sep=sep, header=0)
     except:
         print('failed to extract mzs from feature table')
-        
+
     ## 3. Calculate neutral masses for each mz
     print('Calculating neutral masses')
     minush_nm, pluscl_nm = calculate_neutral_masses(mzs)
-    
+
     ## 4. Get hits to HMDB, within a tolerance
     print('Getting hits to HMDB metabolites, [M-H]-')
     hits_h = get_hmdb_hits(minush_nm, hmdb_dict, ppm_tolerance)
     print('Getting hits to HMDB metabolites, [M+Cl]-')
     hits_cl = get_hmdb_hits(pluscl_nm, hmdb_dict, ppm_tolerance)
-    
+
     ## 5. Write to file
     print('Writing file ' + outfile)
     # 5.1 [M-H]- adducts first
     adducts = ['[M-H]-']*len(minush_nm)
     newfile = True
     write_hits_to_file(adducts, minush_nm, mzs, mznames, hits_h, outfile, overwrite=newfile, describe=describe)
-    
+
     # [M+Cl]- next
     adducts = ['[M+Cl]-']*len(pluscl_nm)
     newfile = False
