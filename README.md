@@ -1,6 +1,6 @@
-# blast_hmdb
+# match_hmdb
 
-Script to blast mz's against HMDB database.
+Script to match mz's to the HMDB database.
 
 In other words, given a feature table with a column labeled `mz`, find all HMDB features within a certain
 ppm tolerance for each of the mz's in that column. If a feature doesn't have a mass match in
@@ -12,13 +12,13 @@ can find on his [github](https://github.com/irockafe/search_hmdb.git).
 
 # Usage
 
-1. Clone this repo: ```git clone https://github.mit.edu/duvallet/blast_hmdb.git```
+1. Clone this repo: ```git clone https://github.mit.edu/duvallet/match_hmdb.git```
 
 2. Gunzip the `hmdb_metabolites_clean.xml.gz` file: ```gunzip data/hmdb_metabolites_clean.xml.gz```
 
 3. Run the code:
 
-   ```python blast_hmdb.py -x data/hmdb_metabolites_clean.xml -f data/toy_feature_table.csv -s , -p 2 -o tmp.out```
+   ```python match_hmdb.py -x data/hmdb_metabolites_clean.xml -f data/toy_feature_table.csv -s , -p 2 -o tmp.out```
 
    Where the `-f` flag corresponds to the feature table with the mz's you want to search against HMDB.
 
@@ -38,7 +38,7 @@ downloaded xml file from HMDB. Otherwise, you can just use `hmdb_metabolites_cle
 which Isaac already downloaded and cleaned up for us.
 
 `hmdb_metabolites_clean.xml` is the cleaned up version containing all HMDB metabolites,
-and should be the default input HMDB file to `blast_hmdb.py`.
+and should be the default input HMDB file to `match_hmdb.py`.
 
 Check out the `toy_feature_table.csv` for an example of what your feature table
 can look like.
